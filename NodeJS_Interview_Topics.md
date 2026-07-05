@@ -298,7 +298,433 @@ process.on('unhandledRejection', (reason) => { ... });
 **Common security tools**: `helmet` (adds safety headers), `express-rate-limit` (stops spam/brute-force by IP), `joi`/`zod` (validate incoming data before trusting it).
 
 ---
+# Helmet (Node.js Security Middleware)
 
+- **Helmet** — a security middleware for Express.js that helps protect your application by automatically setting various HTTP response headers. These headers instruct browsers how to securely handle your website, reducing the risk of attacks such as XSS, Clickjacking, MIME Sniffing, and information leakage.
+
+---
+
+## Why do we use Helmet?
+
+When users visit your website, the server sends two things:
+
+1. **Response Body** (HTML, JSON, etc.)
+2. **Response Headers**
+
+Example:
+
+```http
+HTTP/1.1 200 OK
+
+Content-Type: text/html
+Content-Length: 1200
+```
+
+Helmet adds additional **security headers** to the response.
+
+Example
+
+```http
+HTTP/1.1 200 OK
+
+Content-Security-Policy: default-src 'self'
+X-Content-Type-Options: nosniff
+X-Frame-Options: SAMEORIGIN
+Referrer-Policy: no-referrer
+```
+
+These headers tell the browser how to securely display your application.
+
+---
+
+## Installation
+
+```bash
+npm install helmet
+```
+
+---
+
+## Basic Usage
+
+```javascript
+const express = require("express");
+const helmet = require("helmet");
+
+const app = express();
+
+app.use(helmet());
+
+app.listen(3000);
+```
+
+That's it.
+
+Helmet automatically enables several security protections.
+
+---
+
+# What Problems Does Helmet Solve?
+
+Without Helmet
+
+```text
+User
+
+↓
+
+Browser
+
+↓
+
+Website
+
+↓
+
+No Security Headers
+
+↓
+
+Higher Risk of Attacks
+```
+
+With Helmet
+
+```text
+User
+
+↓
+
+Browser
+
+↓
+
+Helmet Headers
+
+↓
+
+Browser Enforces Security
+
+↓
+
+Website
+```
+
+---
+
+# Security Headers Added by Helmet
+
+---
+
+## 1. Content-Security-Policy (CSP)
+
+- **Definition** — controls which sources (scripts, styles, images, fonts, etc.) the browser is allowed to load, helping prevent Cross-Site Scripting (XSS) attacks.
+
+Example
+
+```http
+Content-Security-Policy:
+default-src 'self';
+script-src 'self';
+```
+
+Meaning
+
+- Only load JavaScript from your own website.
+- Block scripts from unknown websites.
+
+Without CSP
+
+```text
+Website
+
+↓
+
+Attacker injects JavaScript
+
+↓
+
+Browser executes it ❌
+```
+
+With CSP
+
+```text
+Website
+
+↓
+
+Injected Script
+
+↓
+
+Blocked by Browser ✅
+```
+
+---
+
+## 2. X-Content-Type-Options
+
+- **Definition** — prevents browsers from guessing a file's MIME type, reducing the risk of executing malicious files.
+
+Header
+
+```http
+X-Content-Type-Options: nosniff
+```
+
+Without it
+
+```text
+virus.jpg
+
+↓
+
+Browser guesses it's JavaScript
+
+↓
+
+Executes ❌
+```
+
+With Helmet
+
+```text
+virus.jpg
+
+↓
+
+Browser treats it only as an image ✅
+```
+
+---
+
+## 3. X-Frame-Options
+
+- **Definition** — prevents your website from being embedded inside an `<iframe>`, protecting against Clickjacking attacks.
+
+Header
+
+```http
+X-Frame-Options: SAMEORIGIN
+```
+
+Without it
+
+```text
+Attacker Website
+
+↓
+
+Invisible iframe
+
+↓
+
+Your Banking Website
+
+↓
+
+User clicks unknowingly ❌
+```
+
+With Helmet
+
+```text
+Browser blocks iframe ✅
+```
+
+---
+
+## 4. Referrer-Policy
+
+- **Definition** — controls how much information about the current page is sent when users navigate to another website.
+
+Example
+
+```http
+Referrer-Policy: no-referrer
+```
+
+Meaning
+
+No URL information is shared with other websites.
+
+---
+
+## 5. Cross-Origin-Opener-Policy (COOP)
+
+- **Definition** — isolates your application from other browser windows and tabs, helping protect against cross-origin attacks and improving security.
+
+Header
+
+```http
+Cross-Origin-Opener-Policy: same-origin
+```
+
+---
+
+## 6. Cross-Origin-Resource-Policy (CORP)
+
+- **Definition** — prevents other websites from loading your site's resources unless explicitly allowed.
+
+Example
+
+```http
+Cross-Origin-Resource-Policy: same-origin
+```
+
+---
+
+## 7. Origin-Agent-Cluster
+
+- **Definition** — tells the browser to isolate your application into its own process, improving memory isolation and security.
+
+Header
+
+```http
+Origin-Agent-Cluster: ?1
+```
+
+---
+
+## 8. DNS Prefetch Control
+
+- **Definition** — controls whether browsers perform DNS prefetching for links before users click them, helping reduce unnecessary information leakage.
+
+Example
+
+```http
+X-DNS-Prefetch-Control: off
+```
+
+---
+
+# Configuring Helmet
+
+Example
+
+```javascript
+const helmet = require("helmet");
+
+app.use(
+  helmet({
+    contentSecurityPolicy: false,
+    crossOriginEmbedderPolicy: false,
+  })
+);
+```
+
+This disables specific Helmet protections when necessary.
+
+---
+
+# Custom Content Security Policy
+
+```javascript
+app.use(
+  helmet.contentSecurityPolicy({
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "https://cdn.example.com"],
+      imgSrc: ["'self'", "https://images.example.com"],
+    },
+  })
+);
+```
+
+Now only those domains can load scripts and images.
+
+---
+
+# Helmet vs CORS
+
+Many developers confuse these.
+
+### Helmet
+
+- Protects your application using **security headers**.
+- Helps prevent XSS, Clickjacking, MIME Sniffing, and information leakage.
+
+### CORS
+
+- Controls **which websites are allowed to access your API**.
+- Prevents unauthorized cross-origin requests.
+
+Example
+
+```javascript
+app.use(helmet());
+app.use(cors());
+```
+
+Most Express applications use **both**.
+
+---
+
+# Advantages
+
+- Easy to use.
+- Adds multiple security headers automatically.
+- Helps prevent common web attacks.
+- Improves browser security.
+- Recommended for almost every Express application.
+
+---
+
+# Disadvantages
+
+- Some headers (especially CSP) may block legitimate third-party scripts if not configured correctly.
+- Certain applications require custom Helmet configuration.
+- Does not replace input validation, authentication, authorization, or other security best practices.
+
+---
+
+# Common Interview Questions
+
+### Why do we use Helmet?
+
+Helmet secures Express applications by automatically adding HTTP security headers that help prevent attacks such as XSS, Clickjacking, MIME Sniffing, and information leakage.
+
+---
+
+### Does Helmet encrypt data?
+
+No.
+
+Helmet only adds **HTTP security headers**.
+
+Encryption is provided by **HTTPS/TLS**, not Helmet.
+
+---
+
+### Does Helmet prevent SQL Injection?
+
+No.
+
+SQL Injection is prevented by using:
+
+- Parameterized queries
+- Prepared statements
+- ORM methods
+
+Helmet only protects through browser security headers.
+
+---
+
+### Does Helmet replace CORS?
+
+No.
+
+- Helmet secures browser behavior using HTTP headers.
+- CORS controls which origins can access your APIs.
+
+They solve different security problems.
+
+---
+
+### Should every Express application use Helmet?
+
+Yes, in most cases. Helmet is lightweight, easy to configure, and provides important browser-side security protections with minimal code.
 ## 14. Testing Basics
 
 - **Unit tests** — test one small function alone
